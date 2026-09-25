@@ -1,0 +1,21 @@
+---
+- name: Change hostname and reboot SUSE server
+  hosts: all
+  become: yes
+
+  tasks:
+    - name: Set hostname
+      hostname:
+        name: AWS-S15-EC2
+
+    - name: Update /etc/hosts entry
+      lineinfile:
+        path: /etc/hosts
+        regexp: '^127\.0\.1\.1'
+        line: '127.0.1.1 AWS-S15-EC2'
+        create: yes
+
+    - name: Reboot server
+      reboot:
+        msg: "Reboot initiated by Ansible after hostname change"
+        reboot_timeout: 600
