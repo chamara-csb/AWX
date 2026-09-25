@@ -1,0 +1,42 @@
+---
+- name: Secure and Update SLES Servers
+  hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+
+    - name: Verify current SSH user
+      ansible.builtin.command: whoami
+      register: current_user
+      changed_when: false
+
+    - name: Display current SSH user
+      ansible.builtin.debug:
+        msg: "Connected to {{ inventory_hostname }} as {{ current_user.stdout }}"
+
+    - name: Disable SSH root login
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^[#\s]*PermitRootLogin'
+        line: 'PermitRootLogin no'
+        backup: true
+      notify: Restart SSH
+
+    - name: Refresh Zypper repositories
+      community.general.zypper:
+        name: '*'
+        update_cache: true
+        state: present
+
+    - name: Update all installed packages
+      community.general.zypper:
+        name: '*'
+        state: latest
+
+  handlers:
+
+    - name: Restart SSH
+      ansible.builtin.service:
+        name: sshd
+        state: restarted
