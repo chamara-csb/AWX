@@ -1,38 +1,48 @@
+```yaml
 ---
-- name: Secure and Update SLES Servers
+- name: Disable Root SSH Access and Update SLES
   hosts: all
   become: true
   gather_facts: true
 
   tasks:
 
-    - name: Verify current SSH user
-      ansible.builtin.command: whoami
-      register: current_user
-      changed_when: false
-
-    - name: Display current SSH user
+    - name: Display server information
       ansible.builtin.debug:
-        msg: "Connected to {{ inventory_hostname }} as {{ current_user.stdout }}"
+        msg:
+          - "Hostname: {{ ansible_hostname }}"
+          - "IP Address: {{ ansible_default_ipv4.address }}"
+          - "Operating System: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+    - name: Check current SSH root login configuration
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: sshd_config
+      changed_when: false
 
     - name: Disable SSH root login
       ansible.builtin.lineinfile:
         path: /etc/ssh/sshd_config
-        regexp: '^[#\s]*PermitRootLogin'
+        regexp: '^[#[:space:]]*PermitRootLogin'
         line: 'PermitRootLogin no'
         backup: true
       notify: Restart SSH
 
     - name: Refresh Zypper repositories
-      community.general.zypper:
-        name: '*'
-        update_cache: true
-        state: present
+      ansible.builtin.command:
+        cmd: zypper --non-interactive refresh
+      register: zypper_refresh
+      changed_when: false
 
     - name: Update all installed packages
-      community.general.zypper:
-        name: '*'
-        state: latest
+      ansible.builtin.command:
+        cmd: zypper --non-interactive update
+      register: zypper_update
+      changed_when: false
+
+    - name: Display Zypper update result
+      ansible.builtin.debug:
+        var: zypper_update.stdout_lines
 
   handlers:
 
@@ -40,3 +50,4 @@
       ansible.builtin.service:
         name: sshd
         state: restarted
+```
