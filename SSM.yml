@@ -1,9 +1,28 @@
-- name: Check current user
-  ansible.builtin.command:
-    cmd: "whoami"
-  register: current_user
-  changed_when: false
+---
+- name: Test SLES Privilege Escalation
+  hosts: all
+  become: true
+  become_method: sudo
+  gather_facts: false
 
-- name: Display current user
-  ansible.builtin.debug:
-    var: current_user.stdout
+  tasks:
+
+    - name: Check current user
+      ansible.builtin.command:
+        cmd: "whoami"
+      register: whoami_result
+      changed_when: false
+
+    - name: Display current user
+      ansible.builtin.debug:
+        msg: "Current user: {{ whoami_result.stdout }}"
+
+    - name: Check root access
+      ansible.builtin.command:
+        cmd: "id"
+      register: id_result
+      changed_when: false
+
+    - name: Display identity
+      ansible.builtin.debug:
+        var: id_result.stdout
