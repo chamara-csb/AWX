@@ -1,10 +1,10 @@
 ---
 
-- name: Verify modules disabled
+- name: Verify loaded modules after remediation
 
   shell: |
 
-    lsmod | grep -w {{ item }}
+    lsmod | grep -w "{{ item }}"
 
   register: verify_loaded
 
@@ -15,11 +15,12 @@
   loop: "{{ cis_filesystem_modules }}"
 
 
-- name: Verify blacklist configuration
+
+- name: Verify CIS module configuration
 
   shell: |
 
-    modprobe --showconfig | grep -E "^(blacklist|install).*{{ item }}"
+    modprobe --showconfig | grep -E "^(install|blacklist).*{{ item }}"
 
   register: verify_config
 
@@ -30,7 +31,8 @@
   loop: "{{ cis_filesystem_modules }}"
 
 
-- name: CIS Final Validation
+
+- name: CIS Final Compliance Report
 
   debug:
 
@@ -38,15 +40,26 @@
 
       Module: "{{ item.item }}"
 
-      Loaded: "{{ item.stdout }}"
+      Loaded:
 
-      Status: >-
-
-        {{
-          'PASS'
-          if item.stdout == ''
-          else
-          'FAIL'
-        }}
+        "{{ 'FAIL' if item.stdout != '' else 'PASS' }}"
 
   loop: "{{ verify_loaded.results }}"
+
+
+
+- name: CIS Compliance Check
+
+  assert:
+
+    that:
+
+      - verify_loaded.results | selectattr('stdout','ne','') | list | length == 0
+
+    success_msg:
+
+      "CIS 1.1.1 Filesystem Kernel Modules PASS"
+
+    fail_msg:
+
+      "CIS 1.1.1 Filesystem Kernel Modules FAILED"
