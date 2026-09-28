@@ -1,0 +1,65 @@
+---
+
+- name: Initialize failed module list
+  set_fact:
+    cis_failed_modules: []
+
+
+- name: Check module status
+  shell: |
+    lsmod | grep -w {{ item }}
+  register: module_loaded
+  failed_when: false
+  changed_when: false
+  loop: "{{ cis_filesystem_modules }}"
+
+
+- name: Check modprobe configuration
+  shell: |
+    modprobe --showconfig | grep -E "^(blacklist|install).*{{ item }}"
+  register: module_config
+  failed_when: false
+  changed_when: false
+  loop: "{{ cis_filesystem_modules }}"
+
+
+- name: Evaluate module compliance
+  set_fact:
+
+    cis_failed_modules: "{{ cis_failed_modules + [item.item] }}"
+
+  when:
+
+    - item.stdout == ""
+
+  loop: "{{ module_loaded.results }}"
+
+
+- name: Add modules without blacklist
+
+  set_fact:
+
+    cis_failed_modules: "{{ cis_failed_modules + [item.item] }}"
+
+  when:
+
+    - "'blacklist ' + item.item not in item.stdout"
+
+  loop: "{{ module_config.results }}"
+
+
+- name: Remove duplicates
+
+  set_fact:
+
+    cis_failed_modules: "{{ cis_failed_modules | unique }}"
+
+
+- name: CIS Audit Result
+
+  debug:
+
+    msg:
+
+      Failed Modules:
+        "{{ cis_failed_modules }}"

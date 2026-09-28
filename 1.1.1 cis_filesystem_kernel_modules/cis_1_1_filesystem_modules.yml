@@ -1,0 +1,12 @@
+---
+
+- name: CIS 1.1.1 Filesystem Kernel Module Hardening
+
+  hosts: all
+
+  become: yes
+
+
+  roles:
+
+    - cis_filesystem_kernel_modules
