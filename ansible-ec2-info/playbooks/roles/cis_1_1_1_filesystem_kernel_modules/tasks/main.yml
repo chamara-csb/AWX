@@ -1,14 +1,13 @@
 ---
 
-- name: CIS 1.1.1 Audit filesystem kernel modules
-  include_tasks: audit.yml
+- name: CIS 1.1.1 - Filesystem Kernel Modules
+  debug:
+    msg: "Starting CIS filesystem kernel module remediation"
 
 
-- name: CIS 1.1.1 Remediation filesystem kernel modules
+- name: Run remediation
   include_tasks: remediate.yml
-  when:
-    - cis_failed_modules | length > 0
 
 
-- name: CIS 1.1.1 Final verification
+- name: Run verification
   include_tasks: verify.yml
