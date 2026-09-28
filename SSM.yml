@@ -5,7 +5,7 @@
   gather_facts: true
 
   vars:
-    ssm_agent_url: "https://s3.amazonaws.com/amazon-ssm-{{ ansible_architecture }}/latest/linux_amd64/amazon-ssm-agent.rpm"
+    ssm_agent_url: "https://s3.amazonaws.com/amazon-ssm-eu-west-1/latest/linux_amd64/amazon-ssm-agent.rpm"
     ssm_agent_rpm: "/tmp/amazon-ssm-agent.rpm"
 
   tasks:
