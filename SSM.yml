@@ -1,12 +1,12 @@
 ---
-- name: Install and Configure AWS SSM Agent on SLES
+- name: Install AWS SSM Agent on SLES
   hosts: all
   become: true
   gather_facts: true
 
   vars:
-    ssm_agent_url: "https://s3.amazonaws.com/amazon-ssm-eu-west-1/latest/linux_amd64/amazon-ssm-agent.rpm"
     ssm_agent_rpm: "/tmp/amazon-ssm-agent.rpm"
+    ssm_agent_url: "https://s3.amazonaws.com/amazon-ssm-eu-west-1/latest/linux_amd64/amazon-ssm-agent.rpm"
 
   tasks:
 
@@ -25,39 +25,52 @@
         mode: "0644"
         force: true
 
-    - name: Install AWS SSM Agent
-      ansible.builtin.zypper:
-        name: "{{ ssm_agent_rpm }}"
-        state: present
-        disable_gpg_check: true
+    - name: Check downloaded RPM
+      ansible.builtin.command:
+        cmd: "rpm -qip {{ ssm_agent_rpm }}"
+      register: rpm_info
+      changed_when: false
 
-    - name: Enable SSM Agent service
-      ansible.builtin.systemd:
-        name: amazon-ssm-agent
-        enabled: true
-
-    - name: Start SSM Agent service
-      ansible.builtin.systemd:
-        name: amazon-ssm-agent
-        state: started
-
-    - name: Check SSM Agent service status
-      ansible.builtin.systemd:
-        name: amazon-ssm-agent
-      register: ssm_service
-
-    - name: Display SSM Agent status
+    - name: Display RPM information
       ansible.builtin.debug:
-        msg:
-          - "SSM Agent status: {{ ssm_service.status.ActiveState }}"
-          - "SSM Agent enabled: {{ ssm_service.status.UnitFileState }}"
+        var: rpm_info.stdout
 
-    - name: Verify SSM Agent process
-      ansible.builtin.shell:
+    - name: Install AWS SSM Agent RPM
+      ansible.builtin.command:
+        cmd: "rpm -Uvh {{ ssm_agent_rpm }}"
+      register: rpm_install
+      changed_when: rpm_install.rc == 0
+
+    - name: Enable AWS SSM Agent
+      ansible.builtin.command:
+        cmd: "systemctl enable amazon-ssm-agent"
+      changed_when: false
+
+    - name: Start AWS SSM Agent
+      ansible.builtin.command:
+        cmd: "systemctl start amazon-ssm-agent"
+
+    - name: Check AWS SSM Agent status
+      ansible.builtin.command:
         cmd: "systemctl is-active amazon-ssm-agent"
       register: ssm_status
       changed_when: false
 
-    - name: Confirm SSM Agent is running
+    - name: Display SSM Agent status
       ansible.builtin.debug:
-        msg: "AWS SSM Agent is {{ ssm_status.stdout }}"
+        msg: "AWS SSM Agent status: {{ ssm_status.stdout }}"
+
+    - name: Check SSM Agent version
+      ansible.builtin.command:
+        cmd: "/opt/aws/ssm/bin/amazon-ssm-agent -version"
+      register: ssm_version
+      changed_when: false
+
+    - name: Display SSM Agent version
+      ansible.builtin.debug:
+        var: ssm_version.stdout
+
+    - name: Fail if SSM Agent is not running
+      ansible.builtin.fail:
+        msg: "AWS SSM Agent installation completed, but the service is not running."
+      when: ssm_status.stdout != "active"
