@@ -1,58 +1,92 @@
 ---
 
-- name: CIS remediation started
+############################################
+# Find existing modprobe configuration files
+############################################
 
-  debug:
-
-    msg:
-
-      "Remediating modules: {{ cis_failed_modules }}"
-
-
-
-- name: Unload active filesystem modules
-
-  shell: |
-
-    modprobe -r {{ item }} 2>/dev/null || true
-
-    rmmod {{ item }} 2>/dev/null || true
-
-  loop: "{{ cis_failed_modules }}"
-
-  become: yes
+- name: Find existing modprobe configuration
+  find:
+    paths: /etc/modprobe.d
+    patterns: "*.conf"
+  register: modprobe_files
 
 
+############################################
+# Remove old blacklist entries
+############################################
 
-- name: Create CIS modprobe blacklist configuration
+- name: Remove existing blacklist rules
+  replace:
+    path: "{{ item.0.path }}"
+    regexp: "^blacklist {{ item.1 }}.*$"
+    replace: ""
+  loop: "{{ modprobe_files.files | product(cis_filesystem_modules) | list }}"
+  ignore_errors: yes
 
+
+############################################
+# Remove old install rules
+############################################
+
+- name: Remove existing install rules
+  replace:
+    path: "{{ item.0.path }}"
+    regexp: "^install {{ item.1 }}.*$"
+    replace: ""
+  loop: "{{ modprobe_files.files | product(cis_filesystem_modules) | list }}"
+  ignore_errors: yes
+
+
+############################################
+# Create CIS configuration
+############################################
+
+- name: Create CIS filesystem module configuration
   copy:
-
-    dest: "{{ cis_modprobe_path }}/{{ item }}.conf"
-
+    dest: "{{ cis_modprobe_config.path }}"
     owner: root
-
     group: root
-
     mode: '0644'
-
     content: |
+      #
+      # CIS Benchmark 1.1.1
+      # Disable unused filesystem kernel modules
+      #
 
-      blacklist {{ item }}
+      {% for module in cis_filesystem_modules %}
+      blacklist {{ module }}
+      install {{ module }} /bin/false
 
-      install {{ item }} /bin/false
-
-
-  loop: "{{ cis_failed_modules }}"
-
-  become: yes
+      {% endfor %}
 
 
+############################################
+# Check currently loaded modules
+############################################
 
-- name: Reload kernel module database
+- name: Check loaded filesystem modules
+  shell: |
+    lsmod | grep -w "{{ item }}"
+  register: loaded_modules
+  failed_when: false
+  changed_when: false
+  loop: "{{ cis_filesystem_modules }}"
 
-  command:
 
-    depmod -a
+############################################
+# Unload loaded modules
+############################################
 
-  become: yes
+- name: Unload filesystem modules
+  command: "modprobe -r {{ item.item }}"
+  when:
+    - item.stdout != ""
+  loop: "{{ loaded_modules.results }}"
+
+
+############################################
+# Reload module dependency
+############################################
+
+- name: Run depmod
+  command: depmod -a
