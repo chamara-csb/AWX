@@ -1,0 +1,58 @@
+---
+
+- name: CIS remediation started
+
+  debug:
+
+    msg:
+
+      "Remediating modules: {{ cis_failed_modules }}"
+
+
+
+- name: Unload active filesystem modules
+
+  shell: |
+
+    modprobe -r {{ item }} 2>/dev/null || true
+
+    rmmod {{ item }} 2>/dev/null || true
+
+  loop: "{{ cis_failed_modules }}"
+
+  become: yes
+
+
+
+- name: Create CIS modprobe blacklist configuration
+
+  copy:
+
+    dest: "{{ cis_modprobe_path }}/{{ item }}.conf"
+
+    owner: root
+
+    group: root
+
+    mode: '0644'
+
+    content: |
+
+      blacklist {{ item }}
+
+      install {{ item }} /bin/false
+
+
+  loop: "{{ cis_failed_modules }}"
+
+  become: yes
+
+
+
+- name: Reload kernel module database
+
+  command:
+
+    depmod -a
+
+  become: yes
