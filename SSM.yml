@@ -18,15 +18,38 @@
           - "OS Version: {{ ansible_distribution_version }}"
           - "Architecture: {{ ansible_architecture }}"
 
-    - name: Download AWS SSM Agent RPM
-      ansible.builtin.get_url:
-        url: "{{ ssm_agent_url }}"
-        dest: "{{ ssm_agent_rpm }}"
-        mode: "0644"
-        force: true
-        follow_redirects: all
+    - name: Check curl is installed
+      ansible.builtin.command:
+        cmd: "which curl"
+      register: curl_check
+      changed_when: false
+      failed_when: false
 
-    - name: Check downloaded SSM Agent RPM
+    - name: Install curl if missing
+      ansible.builtin.command:
+        cmd: "zypper --non-interactive install curl"
+      when: curl_check.rc != 0
+
+    - name: Download AWS SSM Agent RPM
+      ansible.builtin.command:
+        cmd: >
+          curl -L --fail --silent --show-error
+          -o {{ ssm_agent_rpm }}
+          "{{ ssm_agent_url }}"
+      register: ssm_download
+      changed_when: true
+
+    - name: Verify SSM Agent RPM exists
+      ansible.builtin.stat:
+        path: "{{ ssm_agent_rpm }}"
+      register: ssm_rpm_file
+
+    - name: Fail if SSM Agent RPM was not downloaded
+      ansible.builtin.fail:
+        msg: "SSM Agent RPM download failed."
+      when: not ssm_rpm_file.stat.exists
+
+    - name: Check SSM Agent RPM
       ansible.builtin.command:
         cmd: "rpm -qip {{ ssm_agent_rpm }}"
       register: rpm_info
@@ -45,15 +68,13 @@
     - name: Enable AWS SSM Agent
       ansible.builtin.command:
         cmd: "systemctl enable amazon-ssm-agent"
-      register: enable_ssm
       changed_when: false
 
     - name: Start AWS SSM Agent
       ansible.builtin.command:
         cmd: "systemctl start amazon-ssm-agent"
-      register: start_ssm
 
-    - name: Check SSM Agent service status
+    - name: Check AWS SSM Agent status
       ansible.builtin.command:
         cmd: "systemctl is-active amazon-ssm-agent"
       register: ssm_status
@@ -75,5 +96,5 @@
 
     - name: Fail if SSM Agent is not running
       ansible.builtin.fail:
-        msg: "SSM Agent installation completed but the service is not running."
+        msg: "AWS SSM Agent installation completed, but the service is not running."
       when: ssm_status.stdout != "active"
