@@ -1,17 +1,31 @@
 ---
 - name: Check AWX project structure
+
   hosts: localhost
+
   gather_facts: false
+
+  become: false
+
 
   tasks:
 
     - name: Show repository structure
+
       shell: |
+        echo "Current directory:"
         pwd
-        ls -la
-        echo "----------------"
-        find /runner/project/github-repo -maxdepth 3 -type d
+
+        echo "Repository:"
+        ls -la /runner/project/github-repo
+
+        echo "Roles:"
+        find /runner/project/github-repo -maxdepth 4 -type d | grep roles
+
       register: output
 
-    - debug:
+
+    - name: Display output
+
+      debug:
         var: output.stdout_lines
