@@ -2,40 +2,80 @@
 
 - name: Initialize failed module list
   set_fact:
+
     cis_failed_modules: []
 
 
-- name: Check module status
+- name: Check filesystem module existence
+
   shell: |
-    lsmod | grep -w {{ item }}
-  register: module_loaded
+
+    find /lib/modules/$(uname -r)/kernel/fs \
+    -type d \
+    -name "{{ item }}"
+
+  register: module_exists
+
   failed_when: false
+
   changed_when: false
+
   loop: "{{ cis_filesystem_modules }}"
+
+
+
+- name: Check loaded filesystem modules
+
+  shell: |
+
+    lsmod | grep -w "{{ item }}"
+
+  register: module_loaded
+
+  failed_when: false
+
+  changed_when: false
+
+  loop: "{{ cis_filesystem_modules }}"
+
 
 
 - name: Check modprobe configuration
+
   shell: |
-    modprobe --showconfig | grep -E "^(blacklist|install).*{{ item }}"
+
+    modprobe --showconfig | grep -E "^(install|blacklist).*{{ item }}"
+
   register: module_config
+
   failed_when: false
+
   changed_when: false
+
   loop: "{{ cis_filesystem_modules }}"
 
 
-- name: Evaluate module compliance
+
+#################################################
+# Detect failures
+#################################################
+
+
+- name: Fail if module is loaded
+
   set_fact:
 
     cis_failed_modules: "{{ cis_failed_modules + [item.item] }}"
 
   when:
 
-    - item.stdout == ""
+    - item.stdout != ""
 
   loop: "{{ module_loaded.results }}"
 
 
-- name: Add modules without blacklist
+
+- name: Fail if blacklist missing
 
   set_fact:
 
@@ -48,18 +88,34 @@
   loop: "{{ module_config.results }}"
 
 
-- name: Remove duplicates
+
+- name: Fail if install false missing
+
+  set_fact:
+
+    cis_failed_modules: "{{ cis_failed_modules + [item.item] }}"
+
+  when:
+
+    - "'install ' + item.item + ' /bin/false' not in item.stdout"
+
+  loop: "{{ module_config.results }}"
+
+
+
+- name: Remove duplicate failed modules
 
   set_fact:
 
     cis_failed_modules: "{{ cis_failed_modules | unique }}"
 
 
-- name: CIS Audit Result
+
+- name: CIS Audit Report
 
   debug:
 
     msg:
 
-      Failed Modules:
-        "{{ cis_failed_modules }}"
+      - "Filesystem modules requiring remediation:"
+      - "{{ cis_failed_modules }}"
