@@ -1,65 +1,49 @@
 ---
 
-- name: Verify loaded modules after remediation
+############################################
+# Verify module is not loaded
+############################################
 
+- name: Verify kernel modules are not loaded
   shell: |
-
     lsmod | grep -w "{{ item }}"
-
-  register: verify_loaded
-
-  failed_when: false
-
+  register: module_loaded
+  failed_when: module_loaded.rc == 0
   changed_when: false
-
   loop: "{{ cis_filesystem_modules }}"
 
 
+############################################
+# Verify blacklist exists
+############################################
 
-- name: Verify CIS module configuration
-
+- name: Verify blacklist configuration
   shell: |
-
-    modprobe --showconfig | grep -E "^(install|blacklist).*{{ item }}"
-
-  register: verify_config
-
-  failed_when: false
-
+    modprobe --showconfig | grep -P "^blacklist {{ item }}$"
+  register: blacklist_check
   changed_when: false
-
   loop: "{{ cis_filesystem_modules }}"
 
 
+############################################
+# Verify install false exists
+############################################
 
-- name: CIS Final Compliance Report
+- name: Verify install false configuration
+  shell: |
+    modprobe --showconfig | grep -P "^install {{ item }} /bin/false$"
+  register: install_check
+  changed_when: false
+  loop: "{{ cis_filesystem_modules }}"
 
+
+############################################
+# CIS Final Result
+############################################
+
+- name: CIS Compliance Result
   debug:
-
     msg:
-
-      Module: "{{ item.item }}"
-
-      Loaded:
-
-        "{{ 'FAIL' if item.stdout != '' else 'PASS' }}"
-
-  loop: "{{ verify_loaded.results }}"
-
-
-
-- name: CIS Compliance Check
-
-  assert:
-
-    that:
-
-      - verify_loaded.results | selectattr('stdout','ne','') | list | length == 0
-
-    success_msg:
-
-      "CIS 1.1.1 Filesystem Kernel Modules PASS"
-
-    fail_msg:
-
-      "CIS 1.1.1 Filesystem Kernel Modules FAILED"
+      - "CIS 1.1.1 Filesystem Kernel Modules PASS"
+      - "Modules disabled:"
+      - "{{ cis_filesystem_modules }}"
