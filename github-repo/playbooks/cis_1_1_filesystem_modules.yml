@@ -1,10 +1,11 @@
 ---
-
-- name: CIS 1.1.1 Filesystem Kernel Module Hardening
+- name: CIS 1.1.1 Configure Filesystem Kernel Modules
 
   hosts: all
 
   become: yes
+
+  gather_facts: yes
 
 
   roles:
