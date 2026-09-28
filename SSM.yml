@@ -1,29 +1,104 @@
 ---
-- name: Test SLES Privilege Escalation
+- name: Install AWS SSM Agent on SLES
   hosts: all
   become: true
   become_method: sudo
   become_user: root
-  gather_facts: false
+  gather_facts: true
+
+  vars:
+    ssm_agent_rpm: "/tmp/amazon-ssm-agent.rpm"
+    ssm_agent_url: "https://s3.eu-west-1.amazonaws.com/amazon-ssm-eu-west-1/latest/linux_amd64/amazon-ssm-agent.rpm"
 
   tasks:
 
-    - name: Check current user
+    - name: Display server information
+      ansible.builtin.debug:
+        msg:
+          - "Hostname: {{ ansible_hostname }}"
+          - "OS: {{ ansible_distribution }}"
+          - "OS Version: {{ ansible_distribution_version }}"
+          - "Architecture: {{ ansible_architecture }}"
+
+    - name: Check curl installation
       ansible.builtin.command:
-        cmd: whoami
-      register: whoami_result
+        cmd: "which curl"
+      register: curl_check
+      changed_when: false
+      failed_when: false
+
+    - name: Install curl if missing
+      ansible.builtin.command:
+        cmd: "zypper --non-interactive install curl"
+      when: curl_check.rc != 0
+
+    - name: Download AWS SSM Agent RPM
+      ansible.builtin.command:
+        cmd: >
+          curl -L --fail --silent --show-error
+          -o {{ ssm_agent_rpm }}
+          "{{ ssm_agent_url }}"
+      register: ssm_download
+      changed_when: true
+
+    - name: Verify SSM Agent RPM exists
+      ansible.builtin.stat:
+        path: "{{ ssm_agent_rpm }}"
+      register: ssm_rpm_file
+
+    - name: Fail if RPM download failed
+      ansible.builtin.fail:
+        msg: "AWS SSM Agent RPM was not downloaded."
+      when: not ssm_rpm_file.stat.exists
+
+    - name: Display RPM file information
+      ansible.builtin.command:
+        cmd: "rpm -qip {{ ssm_agent_rpm }}"
+      register: rpm_info
       changed_when: false
 
-    - name: Display current user
+    - name: Display SSM Agent RPM information
       ansible.builtin.debug:
-        msg: "Current user: {{ whoami_result.stdout }}"
+        var: rpm_info.stdout
 
-    - name: Check identity
+    - name: Install AWS SSM Agent
       ansible.builtin.command:
-        cmd: id
-      register: id_result
+        cmd: "rpm -Uvh {{ ssm_agent_rpm }}"
+      register: rpm_install
+      changed_when: true
+
+    - name: Enable AWS SSM Agent service
+      ansible.builtin.command:
+        cmd: "systemctl enable amazon-ssm-agent"
+      register: enable_ssm
       changed_when: false
 
-    - name: Display identity
+    - name: Start AWS SSM Agent service
+      ansible.builtin.command:
+        cmd: "systemctl start amazon-ssm-agent"
+      register: start_ssm
+
+    - name: Check SSM Agent service status
+      ansible.builtin.command:
+        cmd: "systemctl is-active amazon-ssm-agent"
+      register: ssm_status
+      changed_when: false
+
+    - name: Display SSM Agent status
       ansible.builtin.debug:
-        var: id_result.stdout
+        msg: "AWS SSM Agent status: {{ ssm_status.stdout }}"
+
+    - name: Check SSM Agent version
+      ansible.builtin.command:
+        cmd: "/opt/aws/ssm/bin/amazon-ssm-agent -version"
+      register: ssm_version
+      changed_when: false
+
+    - name: Display SSM Agent version
+      ansible.builtin.debug:
+        var: ssm_version.stdout
+
+    - name: Fail if SSM Agent is not running
+      ansible.builtin.fail:
+        msg: "SSM Agent was installed but is not running."
+      when: ssm_status.stdout != "active"
