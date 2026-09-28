@@ -1,0 +1,17 @@
+---
+- name: Check AWX project structure
+  hosts: localhost
+  gather_facts: false
+
+  tasks:
+
+    - name: Show repository structure
+      shell: |
+        pwd
+        ls -la
+        echo "----------------"
+        find /runner/project/github-repo -maxdepth 3 -type d
+      register: output
+
+    - debug:
+        var: output.stdout_lines
