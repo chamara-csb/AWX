@@ -1,0 +1,52 @@
+---
+
+- name: Verify modules disabled
+
+  shell: |
+
+    lsmod | grep -w {{ item }}
+
+  register: verify_loaded
+
+  failed_when: false
+
+  changed_when: false
+
+  loop: "{{ cis_filesystem_modules }}"
+
+
+- name: Verify blacklist configuration
+
+  shell: |
+
+    modprobe --showconfig | grep -E "^(blacklist|install).*{{ item }}"
+
+  register: verify_config
+
+  failed_when: false
+
+  changed_when: false
+
+  loop: "{{ cis_filesystem_modules }}"
+
+
+- name: CIS Final Validation
+
+  debug:
+
+    msg:
+
+      Module: "{{ item.item }}"
+
+      Loaded: "{{ item.stdout }}"
+
+      Status: >-
+
+        {{
+          'PASS'
+          if item.stdout == ''
+          else
+          'FAIL'
+        }}
+
+  loop: "{{ verify_loaded.results }}"
