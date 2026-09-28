@@ -9,9 +9,4 @@ cis_filesystem_modules:
   - jffs2
 
 
-cis_disable_unused_filesystems: false
-
-
-cis_modprobe_directory: /etc/modprobe.d
-
-cis_disable_command: /bin/false
+cis_modprobe_path: /etc/modprobe.d
