@@ -1,7 +1,7 @@
 ---
+# CIS 1.1.1 Filesystem Kernel Modules
 
 cis_filesystem_modules:
-
   - cramfs
   - freevxfs
   - hfs
@@ -9,4 +9,5 @@ cis_filesystem_modules:
   - jffs2
 
 
-cis_modprobe_path: /etc/modprobe.d
+cis_modprobe_config:
+  path: /etc/modprobe.d/cis_filesystem_modules.conf
