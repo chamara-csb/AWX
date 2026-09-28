@@ -6,7 +6,7 @@
 
   vars:
     ssm_agent_rpm: "/tmp/amazon-ssm-agent.rpm"
-    ssm_agent_url: "https://s3.amazonaws.com/amazon-ssm-eu-west-1/latest/linux_amd64/amazon-ssm-agent.rpm"
+    ssm_agent_url: "https://s3.eu-west-1.amazonaws.com/amazon-ssm-eu-west-1/latest/linux_amd64/amazon-ssm-agent.rpm"
 
   tasks:
 
@@ -24,8 +24,9 @@
         dest: "{{ ssm_agent_rpm }}"
         mode: "0644"
         force: true
+        follow_redirects: all
 
-    - name: Check downloaded RPM
+    - name: Check downloaded SSM Agent RPM
       ansible.builtin.command:
         cmd: "rpm -qip {{ ssm_agent_rpm }}"
       register: rpm_info
@@ -35,22 +36,24 @@
       ansible.builtin.debug:
         var: rpm_info.stdout
 
-    - name: Install AWS SSM Agent RPM
+    - name: Install AWS SSM Agent
       ansible.builtin.command:
         cmd: "rpm -Uvh {{ ssm_agent_rpm }}"
       register: rpm_install
-      changed_when: rpm_install.rc == 0
+      changed_when: true
 
     - name: Enable AWS SSM Agent
       ansible.builtin.command:
         cmd: "systemctl enable amazon-ssm-agent"
+      register: enable_ssm
       changed_when: false
 
     - name: Start AWS SSM Agent
       ansible.builtin.command:
         cmd: "systemctl start amazon-ssm-agent"
+      register: start_ssm
 
-    - name: Check AWS SSM Agent status
+    - name: Check SSM Agent service status
       ansible.builtin.command:
         cmd: "systemctl is-active amazon-ssm-agent"
       register: ssm_status
@@ -72,5 +75,5 @@
 
     - name: Fail if SSM Agent is not running
       ansible.builtin.fail:
-        msg: "AWS SSM Agent installation completed, but the service is not running."
+        msg: "SSM Agent installation completed but the service is not running."
       when: ssm_status.stdout != "active"
