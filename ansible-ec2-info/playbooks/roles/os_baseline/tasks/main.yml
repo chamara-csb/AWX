@@ -1,0 +1,15 @@
+---
+- name: Gather minimal OS facts
+  ansible.builtin.setup:
+    gather_subset:
+      - min
+
+
+- name: Display Server Information
+  ansible.builtin.debug:
+    msg:
+      Hostname: "{{ ansible_hostname }}"
+      OS: "{{ ansible_distribution }}"
+      Version: "{{ ansible_distribution_version }}"
+      Kernel: "{{ ansible_kernel }}"
+      IP: "{{ ansible_default_ipv4.address }}"
