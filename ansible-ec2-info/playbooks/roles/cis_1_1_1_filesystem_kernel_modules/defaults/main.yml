@@ -7,7 +7,6 @@ cis_filesystem_modules:
   - hfs
   - hfsplus
   - jffs2
-  - squashfs
 
 
 cis_modprobe_config:
