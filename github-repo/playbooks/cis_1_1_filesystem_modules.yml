@@ -5,7 +5,17 @@
 
   become: yes
 
-  gather_facts: yes
+  gather_facts: no
+
+
+  tasks:
+
+    - name: Show Ansible role path
+      command: ansible-config dump --only-changed
+      register: ansible_config_output
+
+    - debug:
+        var: ansible_config_output.stdout_lines
 
 
   roles:
