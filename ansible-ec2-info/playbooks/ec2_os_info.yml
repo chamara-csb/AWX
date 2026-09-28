@@ -5,17 +5,15 @@
 
   tasks:
 
-    - name: Gather OS information
+    - name: Gather OS facts
       ansible.builtin.setup:
-        filter:
-          - ansible_hostname
-          - ansible_distribution
-          - ansible_distribution_version
+        gather_subset:
+          - min
 
-
-    - name: Display Hostname and OS
+    - name: Display EC2 hostname and OS
       ansible.builtin.debug:
         msg:
-          - "Hostname : {{ ansible_hostname }}"
-          - "OS       : {{ ansible_distribution }}"
-          - "Version  : {{ ansible_distribution_version }}"
+          Hostname: "{{ ansible_hostname }}"
+          OS: "{{ ansible_distribution }}"
+          Version: "{{ ansible_distribution_version }}"
+          Kernel: "{{ ansible_kernel }}"
