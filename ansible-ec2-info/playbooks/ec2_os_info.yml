@@ -1,0 +1,21 @@
+---
+- name: Display EC2 Host Information
+  hosts: all
+  become: yes
+
+  tasks:
+
+    - name: Gather OS information
+      ansible.builtin.setup:
+        filter:
+          - ansible_hostname
+          - ansible_distribution
+          - ansible_distribution_version
+
+
+    - name: Display Hostname and OS
+      ansible.builtin.debug:
+        msg:
+          - "Hostname : {{ ansible_hostname }}"
+          - "OS       : {{ ansible_distribution }}"
+          - "Version  : {{ ansible_distribution_version }}"
